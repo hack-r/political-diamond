@@ -285,7 +285,7 @@
   <div id="chart-section">
     <div class="chart-title">Your Political Position</div>
     <div class="chart-wrapper">
-      <img id="chart-bg" src="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001" alt="">
+      <img id="chart-bg" src="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001" crossorigin="anonymous" alt="Political diamond chart background grid">
       <svg id="chart-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Political position chart"></svg>
     </div>
     <div class="scores-display" id="scores-display"></div>
@@ -459,6 +459,9 @@
           'Freedom Score: <span>' + scores.yScore + ' / 8</span>' +
           '&nbsp;&nbsp;|&nbsp;&nbsp;' +
           'Status-Quo Score: <span>' + scores.xScore + ' / 2</span>';
+
+        // Encode results in URL hash so the Share button can link directly to them
+        history.replaceState(null, '', '#y=' + scores.yScore + '&x=' + scores.xScore);
       }, 820);
     }
 
@@ -628,7 +631,32 @@
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
+    function loadFromHash() {
+      var hash = window.location.hash.slice(1);
+      if (!hash) return;
+      var params = new URLSearchParams(hash);
+      var yStr = params.get('y'), xStr = params.get('x');
+      if (yStr === null || xStr === null) return;
+      var yScore = parseInt(yStr, 10), xScore = parseInt(xStr, 10);
+      if (isNaN(yScore) || isNaN(xScore)) return;
+      if (yScore < 0 || yScore > 8 || xScore < 0 || xScore > 2) return;
+
+      var quizSection = document.getElementById('quiz-section');
+      quizSection.style.display = 'none';
+
+      buildChart(xScore, yScore);
+
+      var chartSection = document.getElementById('chart-section');
+      chartSection.classList.add('visible', 'fade-in');
+
+      document.getElementById('scores-display').innerHTML =
+        'Freedom Score: <span>' + yScore + ' / 8</span>' +
+        '&nbsp;&nbsp;|&nbsp;&nbsp;' +
+        'Status-Quo Score: <span>' + xScore + ' / 2</span>';
+    }
+
     buildQuiz();
+    loadFromHash();
   </script>
 </body>
 </html>
