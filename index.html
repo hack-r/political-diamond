@@ -4,6 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>A New "World's Smallest Political Quiz"</title>
+
+  <!-- Favicon: American flag emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇺🇸</text></svg>">
+
+  <!-- SEO -->
+  <meta name="description" content="Take the World's Smallest Political Quiz and discover where you fall on the political diamond chart. Answer 10 questions on freedom and political change to find your position.">
+  <meta name="keywords" content="political quiz, political diamond, libertarian, progressive, conservative, political spectrum, freedom score, political compass">
+  <meta name="author" content="hack-r">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://political-diamond.pages.dev/">
+
+  <!-- Open Graph / Social Preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://political-diamond.pages.dev/">
+  <meta property="og:title" content="A New &ldquo;World&rsquo;s Smallest Political Quiz&rdquo;">
+  <meta property="og:description" content="Discover your political position on the diamond chart. Answer 10 honest questions on freedom and political change to see where you really stand.">
+  <meta property="og:image" content="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001">
+  <meta property="og:image:alt" content="Political Diamond chart — a two-axis grid showing freedom vs. stance on change">
+  <meta property="og:site_name" content="Political Diamond Quiz">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="A New &ldquo;World&rsquo;s Smallest Political Quiz&rdquo;">
+  <meta name="twitter:description" content="Discover your political position on the diamond chart. Answer 10 honest questions on freedom and political change.">
+  <meta name="twitter:image" content="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001">
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -206,6 +231,38 @@
       font-weight: bold;
     }
 
+    /* ── Chart action buttons ── */
+    .chart-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 0.25rem;
+    }
+
+    .chart-actions button {
+      padding: 0.55rem 1.4rem;
+      background: transparent;
+      color: #c9a84c;
+      border: 2px solid #c9a84c;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: 'Georgia', serif;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.15s;
+    }
+
+    .chart-actions button:hover:not(:disabled) {
+      background: #c9a84c;
+      color: #1a1a2e;
+      transform: scale(1.03);
+    }
+
+    .chart-actions button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
     @media (max-width: 480px) {
       h1 { font-size: 1.3rem; }
       .question-card { padding: 1rem; }
@@ -232,6 +289,10 @@
       <svg id="chart-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Political position chart"></svg>
     </div>
     <div class="scores-display" id="scores-display"></div>
+    <div class="chart-actions">
+      <button id="download-btn" onclick="downloadChart()">&#11015; Download Chart</button>
+      <button id="share-btn" onclick="shareChart()">&#8599; Share</button>
+    </div>
   </div>
 
   <script>
@@ -438,6 +499,132 @@
           '<animate attributeName="r"       values="1.6;2.2;1.6" dur="2.2s" repeatCount="indefinite"/>' +
           '<animate attributeName="opacity" values="1;0.85;1"    dur="2.2s" repeatCount="indefinite"/>' +
         '</circle>';
+    }
+
+    // ── Canvas export ─────────────────────────────────────────────────────────
+    function buildChartCanvas(callback) {
+      var bgEl  = document.getElementById('chart-bg');
+      var svgEl = document.getElementById('chart-svg');
+      var w = bgEl.naturalWidth  || bgEl.offsetWidth;
+      var h = bgEl.naturalHeight || bgEl.offsetHeight;
+
+      if (!w || !h) { callback(null); return; }
+
+      var canvas = document.createElement('canvas');
+      canvas.width  = w;
+      canvas.height = h;
+      var ctx = canvas.getContext('2d');
+
+      var bgImg = new Image();
+      bgImg.crossOrigin = 'anonymous';
+      bgImg.onload = function () {
+        ctx.drawImage(bgImg, 0, 0, w, h);
+
+        var svgClone = svgEl.cloneNode(true);
+        svgClone.setAttribute('width',  w);
+        svgClone.setAttribute('height', h);
+        if (!svgClone.getAttribute('xmlns')) {
+          svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        }
+
+        var svgStr  = new XMLSerializer().serializeToString(svgClone);
+        var svgBlob = new Blob([svgStr], { type: 'image/svg+xml' });
+        var svgUrl  = URL.createObjectURL(svgBlob);
+
+        var dotImg = new Image();
+        dotImg.onload = function () {
+          ctx.drawImage(dotImg, 0, 0, w, h);
+          URL.revokeObjectURL(svgUrl);
+          callback(canvas);
+        };
+        dotImg.onerror = function () {
+          URL.revokeObjectURL(svgUrl);
+          callback(canvas);
+        };
+        dotImg.src = svgUrl;
+      };
+      bgImg.onerror = function () { callback(null); };
+      bgImg.src = bgEl.src;
+    }
+
+    function downloadChart() {
+      var btn = document.getElementById('download-btn');
+      btn.textContent = 'Preparing\u2026';
+      btn.disabled = true;
+
+      buildChartCanvas(function (canvas) {
+        btn.textContent = '\u2B07 Download Chart';
+        btn.disabled = false;
+        if (!canvas) { alert('Could not generate the chart image. Please try again.'); return; }
+
+        canvas.toBlob(function (blob) {
+          var url = URL.createObjectURL(blob);
+          var a   = document.createElement('a');
+          a.download = 'my-political-position.png';
+          a.href = url;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+        }, 'image/png');
+      });
+    }
+
+    function shareChart() {
+      var btn = document.getElementById('share-btn');
+
+      function flashBtn(msg) {
+        var orig = btn.textContent;
+        btn.textContent = msg;
+        setTimeout(function () { btn.textContent = orig; }, 2500);
+      }
+
+      function copyUrlFallback() {
+        var url = window.location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { flashBtn('\u2713 Link Copied!'); });
+        } else {
+          var tmp = document.createElement('textarea');
+          tmp.value = url;
+          document.body.appendChild(tmp);
+          tmp.select();
+          try { document.execCommand('copy'); flashBtn('\u2713 Link Copied!'); } catch (e) {}
+          document.body.removeChild(tmp);
+        }
+      }
+
+      if (!navigator.share) { copyUrlFallback(); return; }
+
+      btn.textContent = 'Sharing\u2026';
+      btn.disabled = true;
+
+      buildChartCanvas(function (canvas) {
+        btn.textContent = '\u2197 Share';
+        btn.disabled = false;
+
+        function shareUrlOnly() {
+          navigator.share({
+            title: document.title,
+            text: 'I took the World\u2019s Smallest Political Quiz \u2014 see where you fall too!',
+            url: window.location.href
+          }).catch(function () {});
+        }
+
+        if (!canvas) { shareUrlOnly(); return; }
+
+        canvas.toBlob(function (blob) {
+          var file = new File([blob], 'my-political-position.png', { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+              files: [file],
+              title: 'My Political Position',
+              text: 'I took the World\u2019s Smallest Political Quiz!'
+            }).catch(function () { shareUrlOnly(); });
+          } else {
+            shareUrlOnly();
+          }
+        }, 'image/png');
+      });
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
