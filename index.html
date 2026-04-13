@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A New "World's Smallest Political Quiz"</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    h1 {
+      font-size: 1.7rem;
+      text-align: center;
+      color: #c9a84c;
+      margin-bottom: 0.4rem;
+      text-shadow: 0 0 20px rgba(201, 168, 76, 0.35);
+      max-width: 700px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 2rem;
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    /* ── Quiz section ── */
+    #quiz-section {
+      width: 100%;
+      max-width: 700px;
+      transition: opacity 0.8s ease;
+    }
+
+    #quiz-section.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 5px;
+      background: #0f3460;
+      border-radius: 3px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #c9a84c;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .question-card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 1.2rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .question-number {
+      font-size: 0.75rem;
+      color: #c9a84c;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .question-text {
+      font-size: 0.97rem;
+      line-height: 1.55;
+      color: #e0e0e0;
+      margin-bottom: 0.9rem;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .answer-btn {
+      flex: 1;
+      padding: 0.45rem 0.8rem;
+      border: 2px solid #0f3460;
+      background: transparent;
+      color: #e0e0e0;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-family: 'Georgia', serif;
+      transition: border-color 0.18s, color 0.18s, background 0.18s;
+    }
+
+    .answer-btn:hover {
+      border-color: #c9a84c;
+      color: #c9a84c;
+    }
+
+    .answer-btn.selected-true {
+      background: #1a4a6e;
+      border-color: #3498db;
+      color: #fff;
+    }
+
+    .answer-btn.selected-false {
+      background: #3d1a52;
+      border-color: #9b59b6;
+      color: #fff;
+    }
+
+    #submit-btn {
+      display: none;
+      margin: 1.8rem auto 0;
+      padding: 0.75rem 2.8rem;
+      background: #c9a84c;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.05rem;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: 'Georgia', serif;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    #submit-btn:hover {
+      background: #e8c56a;
+      transform: scale(1.03);
+    }
+
+    /* ── Chart section ── */
+    #chart-section {
+      width: 100%;
+      max-width: 560px;
+      opacity: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      transition: opacity 0.9s ease;
+    }
+
+    #chart-section.visible {
+      display: flex;
+    }
+
+    #chart-section.fade-in {
+      opacity: 1;
+    }
+
+    .chart-title {
+      font-size: 1.25rem;
+      color: #c9a84c;
+      text-align: center;
+      letter-spacing: 0.03em;
+    }
+
+    #chart-svg {
+      width: 100%;
+      max-width: 520px;
+      border-radius: 8px;
+      overflow: visible;
+    }
+
+    .scores-display {
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .scores-display span {
+      color: #c9a84c;
+      font-weight: bold;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.3rem; }
+      .question-card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>A New &ldquo;World&rsquo;s Smallest Political Quiz&rdquo;</h1>
+  <p class="subtitle">Answer all 10 questions honestly to see where you fall on the political chart.</p>
+
+  <div id="quiz-section">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <div id="questions-container"></div>
+    <button id="submit-btn" onclick="showResults()">See My Results &rarr;</button>
+  </div>
+
+  <div id="chart-section">
+    <div class="chart-title">Your Political Position</div>
+    <svg id="chart-svg" viewBox="0 0 520 520" xmlns="http://www.w3.org/2000/svg" aria-label="Political position chart"></svg>
+    <div class="scores-display" id="scores-display"></div>
+  </div>
+
+  <script>
+    // ── Questions ────────────────────────────────────────────────────────────
+    // axis: 'y' = freedom (8 qs), 'x' = speed-of-change (2 qs)
+    // inverted: true  → answering FALSE earns 1 point
+    // inverted: false → answering TRUE  earns 1 point
+    var QUESTIONS = [
+      {
+        id: 1,
+        text: "Development or use of AI should be regulated by the government.",
+        axis: 'y',
+        inverted: true
+      },
+      {
+        id: 2,
+        text: "The government has a right to conduct a military draft if the need is sufficiently great.",
+        axis: 'y',
+        inverted: true
+      },
+      {
+        id: 3,
+        text: "Privacy is a prerequisite of freedom, especially in an age of high social control and great information asymmetries.",
+        axis: 'y',
+        inverted: false
+      },
+      {
+        id: 4,
+        text: "All drugs should be legal.",
+        axis: 'y',
+        inverted: false
+      },
+      {
+        id: 5,
+        text: "A group can have rights to an individual if they are deemed to be the individual's stakeholder.",
+        axis: 'y',
+        inverted: true
+      },
+      {
+        id: 6,
+        text: "Most businesses should be required to have Human Resources departments.",
+        axis: 'y',
+        inverted: true
+      },
+      {
+        id: 7,
+        text: "Self-determination is an important American principal, meaning a right to make your own choices free of systematic social pressure, government intervention, or conspiracy.",
+        axis: 'y',
+        inverted: false
+      },
+      {
+        id: 8,
+        text: "It should be illegal to burn the American flag.",
+        axis: 'y',
+        inverted: false
+      },
+      {
+        id: 9,
+        text: "Radical political change in your lifetime is important.",
+        axis: 'x',
+        inverted: true
+      },
+      {
+        id: 10,
+        text: "Overall, the way things are now is mostly okay.",
+        axis: 'x',
+        inverted: false
+      }
+    ];
+
+    // Shuffle in place (Fisher-Yates)
+    var shuffled = QUESTIONS.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+    }
+
+    var answers = {}; // { questionId: true|false }
+
+    // ── Build quiz DOM ────────────────────────────────────────────────────────
+    function buildQuiz() {
+      var container = document.getElementById('questions-container');
+      shuffled.forEach(function (q, index) {
+        var card = document.createElement('div');
+        card.className = 'question-card';
+        card.innerHTML =
+          '<div class="question-number">Question ' + (index + 1) + ' of ' + shuffled.length + '</div>' +
+          '<div class="question-text">' + escapeHtml(q.text) + '</div>' +
+          '<div class="button-group">' +
+          '<button class="answer-btn" data-qid="' + q.id + '" data-val="true">True</button>' +
+          '<button class="answer-btn" data-qid="' + q.id + '" data-val="false">False</button>' +
+          '</div>';
+        container.appendChild(card);
+      });
+
+      // Single delegated click listener
+      container.addEventListener('click', function (e) {
+        var btn = e.target.closest('.answer-btn');
+        if (!btn) return;
+        var qid = parseInt(btn.dataset.qid, 10);
+        var val = btn.dataset.val === 'true';
+        answers[qid] = val;
+
+        var group = btn.closest('.button-group');
+        group.querySelectorAll('.answer-btn').forEach(function (b) {
+          b.classList.remove('selected-true', 'selected-false');
+        });
+        btn.classList.add(val ? 'selected-true' : 'selected-false');
+
+        updateProgress();
+      });
+    }
+
+    function updateProgress() {
+      var answered = Object.keys(answers).length;
+      var pct = (answered / QUESTIONS.length) * 100;
+      document.getElementById('progress-fill').style.width = pct + '%';
+      if (answered === QUESTIONS.length) {
+        document.getElementById('submit-btn').style.display = 'block';
+      }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ── Scoring ───────────────────────────────────────────────────────────────
+    // Y axis: 0–8  (freedom score); 4 = midpoint
+    // X axis: 0–2  (status-quo preference); 1 = center, 2 = right
+    function calculateScores() {
+      var yScore = 0, xScore = 0;
+      QUESTIONS.forEach(function (q) {
+        var userAnswer = answers[q.id]; // true or false
+        var earnedPoint = q.inverted ? !userAnswer : userAnswer;
+        if (earnedPoint) {
+          if (q.axis === 'y') yScore++;
+          else xScore++;
+        }
+      });
+      return { xScore: xScore, yScore: yScore };
+    }
+
+    // ── Transition ────────────────────────────────────────────────────────────
+    function showResults() {
+      var scores = calculateScores();
+
+      var quizSection = document.getElementById('quiz-section');
+      quizSection.classList.add('fade-out');
+
+      setTimeout(function () {
+        quizSection.style.display = 'none';
+
+        buildChart(scores.xScore, scores.yScore);
+
+        var chartSection = document.getElementById('chart-section');
+        chartSection.classList.add('visible');
+
+        // Trigger reflow so transition fires
+        void chartSection.offsetWidth;
+        chartSection.classList.add('fade-in');
+
+        document.getElementById('scores-display').innerHTML =
+          'Freedom Score: <span>' + scores.yScore + ' / 8</span>' +
+          '&nbsp;&nbsp;|&nbsp;&nbsp;' +
+          'Status-Quo Score: <span>' + scores.xScore + ' / 2</span>';
+      }, 820);
+    }
+
+    // ── Chart ─────────────────────────────────────────────────────────────────
+    function buildChart(xScore, yScore) {
+      var svg = document.getElementById('chart-svg');
+
+      var W = 520, H = 520;
+      var mL = 72, mR = 30, mT = 36, mB = 78;
+      var pW = W - mL - mR;   // plot width
+      var pH = H - mT - mB;   // plot height
+
+      // SVG coordinates for the dot
+      // X: xScore / 2 → proportion across plot width (0 = left, 1 = right)
+      // Y: yScore / 8 → proportion up plot height  (SVG y flipped: 0=top)
+      var dotX = mL + (xScore / 2) * pW;
+      var dotY = mT + (1 - yScore / 8) * pH;
+
+      // Helper to make a line element string
+      function line(x1, y1, x2, y2, stroke, width, dash, opacity) {
+        var d = dash ? ' stroke-dasharray="' + dash + '"' : '';
+        var o = opacity != null ? ' opacity="' + opacity + '"' : '';
+        return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+          '" stroke="' + stroke + '" stroke-width="' + width + '"' + d + o + '/>';
+      }
+
+      // Y grid lines at integer scores 0–8
+      var yGridLines = '';
+      for (var yi = 0; yi <= 8; yi++) {
+        var gy = mT + (1 - yi / 8) * pH;
+        var isCenter = (yi === 4);
+        yGridLines += line(mL, gy, mL + pW, gy,
+          isCenter ? '#c9a84c' : '#0f3460',
+          isCenter ? 1.5 : 1,
+          isCenter ? '7,4' : '4,4',
+          isCenter ? 0.55 : 1);
+      }
+
+      // X grid lines at x=0, 1, 2
+      var xGridLines = '';
+      for (var xi = 0; xi <= 2; xi++) {
+        var gx = mL + (xi / 2) * pW;
+        var isCenterX = (xi === 1);
+        xGridLines += line(gx, mT, gx, mT + pH,
+          isCenterX ? '#c9a84c' : '#0f3460',
+          isCenterX ? 1.5 : 1,
+          isCenterX ? '7,4' : '4,4',
+          isCenterX ? 0.55 : 1);
+      }
+
+      // Y axis tick labels
+      var yLabels = '';
+      [0, 2, 4, 6, 8].forEach(function (v) {
+        var ly = mT + (1 - v / 8) * pH;
+        yLabels += '<text x="' + (mL - 9) + '" y="' + (ly + 4) + '"' +
+          ' text-anchor="end" fill="#888" font-size="11" font-family="Georgia,serif">' + v + '</text>';
+      });
+
+      // X axis tick labels
+      var xLabels = '';
+      [0, 1, 2].forEach(function (v) {
+        var lx = mL + (v / 2) * pW;
+        xLabels += '<text x="' + lx + '" y="' + (mT + pH + 18) + '"' +
+          ' text-anchor="middle" fill="#888" font-size="11" font-family="Georgia,serif">' + v + '</text>';
+      });
+
+      // Quadrant label helper
+      function qLabel(x, y, color, line1, line2) {
+        return '<text x="' + x + '" y="' + y + '" text-anchor="middle" fill="' + color + '"' +
+          ' font-size="10" font-family="Georgia,serif" opacity="0.75">' + line1 + '</text>' +
+          (line2 ? '<text x="' + x + '" y="' + (y + 14) + '" text-anchor="middle" fill="' + color + '"' +
+          ' font-size="10" font-family="Georgia,serif" opacity="0.75">' + line2 + '</text>' : '');
+      }
+
+      var qx1 = mL + pW * 0.25, qx2 = mL + pW * 0.75;
+      var qyTop = mT + pH * 0.1, qyBot = mT + pH * 0.88;
+
+      svg.innerHTML =
+        // Defs
+        '<defs>' +
+          '<radialGradient id="dotGrad" cx="50%" cy="50%" r="50%">' +
+            '<stop offset="0%" stop-color="#ff6b6b"/>' +
+            '<stop offset="100%" stop-color="#c0392b"/>' +
+          '</radialGradient>' +
+        '</defs>' +
+
+        // Background
+        '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#1a1a2e" rx="10"/>' +
+
+        // Quadrant fills
+        '<rect x="' + mL + '" y="' + mT + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#162444" opacity="0.55"/>' +
+        '<rect x="' + (mL + pW / 2) + '" y="' + mT + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#16301e" opacity="0.55"/>' +
+        '<rect x="' + mL + '" y="' + (mT + pH / 2) + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#2a1a40" opacity="0.55"/>' +
+        '<rect x="' + (mL + pW / 2) + '" y="' + (mT + pH / 2) + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#2e1a1a" opacity="0.55"/>' +
+
+        // Grid
+        yGridLines + xGridLines +
+
+        // Plot border
+        '<rect x="' + mL + '" y="' + mT + '" width="' + pW + '" height="' + pH +
+          '" fill="none" stroke="#0f3460" stroke-width="2"/>' +
+
+        // Tick labels
+        yLabels + xLabels +
+
+        // Quadrant labels
+        qLabel(qx1, qyTop, '#4a90d9', 'High Freedom', 'Pro-Change') +
+        qLabel(qx2, qyTop, '#2ecc71', 'High Freedom', 'Status Quo') +
+        qLabel(qx1, qyBot, '#9b59b6', 'Low Freedom', 'Pro-Change') +
+        qLabel(qx2, qyBot, '#e74c3c', 'Low Freedom', 'Status Quo') +
+
+        // Axis titles
+        '<text x="' + (mL + pW / 2) + '" y="' + (H - 16) + '"' +
+          ' text-anchor="middle" fill="#c9a84c" font-size="12.5" font-family="Georgia,serif">' +
+          '&#8592; Pro-Change &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Status Quo &#8594;</text>' +
+
+        '<text x="16" y="' + (H / 2) + '"' +
+          ' text-anchor="middle" fill="#c9a84c" font-size="12.5" font-family="Georgia,serif"' +
+          ' transform="rotate(-90,16,' + (H / 2) + ')">' +
+          '&#8595; Low Freedom &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; High Freedom &#8593;</text>' +
+
+        // Crosshair lines to dot
+        line(mL, dotY, dotX, dotY, '#ff6b6b', 0.9, '3,4', 0.5) +
+        line(dotX, mT + pH, dotX, dotY, '#ff6b6b', 0.9, '3,4', 0.5) +
+
+        // Outer glow
+        '<circle cx="' + dotX + '" cy="' + dotY + '" r="15" fill="#c0392b" opacity="0.18"/>' +
+        '<circle cx="' + dotX + '" cy="' + dotY + '" r="11" fill="#c0392b" opacity="0.12"/>' +
+
+        // Dot with pulse animation
+        '<circle cx="' + dotX + '" cy="' + dotY + '" r="8" fill="url(#dotGrad)" stroke="#fff" stroke-width="1.5">' +
+          '<animate attributeName="r" values="8;11;8" dur="2.2s" repeatCount="indefinite"/>' +
+          '<animate attributeName="opacity" values="1;0.85;1" dur="2.2s" repeatCount="indefinite"/>' +
+        '</circle>';
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    buildQuiz();
+  </script>
+</body>
+</html>
