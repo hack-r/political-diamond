@@ -173,10 +173,25 @@
       letter-spacing: 0.03em;
     }
 
-    #chart-svg {
+    .chart-wrapper {
+      position: relative;
       width: 100%;
       max-width: 520px;
+    }
+
+    #chart-bg {
+      width: 100%;
+      height: auto;
+      display: block;
       border-radius: 8px;
+    }
+
+    #chart-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       overflow: visible;
     }
 
@@ -212,7 +227,10 @@
 
   <div id="chart-section">
     <div class="chart-title">Your Political Position</div>
-    <svg id="chart-svg" viewBox="0 0 520 520" xmlns="http://www.w3.org/2000/svg" aria-label="Political position chart"></svg>
+    <div class="chart-wrapper">
+      <img id="chart-bg" src="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001" alt="Political Diamond Chart">
+      <svg id="chart-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Political position chart"></svg>
+    </div>
     <div class="scores-display" id="scores-display"></div>
   </div>
 
@@ -387,78 +405,23 @@
     function buildChart(xScore, yScore) {
       var svg = document.getElementById('chart-svg');
 
-      var W = 520, H = 520;
-      var mL = 72, mR = 30, mT = 36, mB = 78;
-      var pW = W - mL - mR;   // plot width
-      var pH = H - mT - mB;   // plot height
+      // The background image has a border/label area to account for:
+      //   ignore leftmost 10%, bottommost 10%, rightmost 3% of the image.
+      // The remaining inner rectangle is the active chart area.
+      // Coordinates below are expressed as percentages of the image dimensions,
+      // matching the SVG viewBox "0 0 100 100".
+      var plotLeft   = 10;   // % from left edge
+      var plotRight  = 97;   // % from left edge (= ignore rightmost 3%)
+      var plotTop    =  0;   // % from top edge  (no top offset)
+      var plotBottom = 90;   // % from top edge  (= ignore bottommost 10%)
 
-      // SVG coordinates for the dot
-      // X: xScore / 2 → proportion across plot width (0 = left, 1 = right)
-      // Y: yScore / 8 → proportion up plot height  (SVG y flipped: 0=top)
-      var dotX = mL + (xScore / 2) * pW;
-      var dotY = mT + (1 - yScore / 8) * pH;
-
-      // Helper to make a line element string
-      function line(x1, y1, x2, y2, stroke, width, dash, opacity) {
-        var d = dash ? ' stroke-dasharray="' + dash + '"' : '';
-        var o = opacity != null ? ' opacity="' + opacity + '"' : '';
-        return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
-          '" stroke="' + stroke + '" stroke-width="' + width + '"' + d + o + '/>';
-      }
-
-      // Y grid lines at integer scores 0–8
-      var yGridLines = '';
-      for (var yi = 0; yi <= 8; yi++) {
-        var gy = mT + (1 - yi / 8) * pH;
-        var isCenter = (yi === 4);
-        yGridLines += line(mL, gy, mL + pW, gy,
-          isCenter ? '#c9a84c' : '#0f3460',
-          isCenter ? 1.5 : 1,
-          isCenter ? '7,4' : '4,4',
-          isCenter ? 0.55 : 1);
-      }
-
-      // X grid lines at x=0, 1, 2
-      var xGridLines = '';
-      for (var xi = 0; xi <= 2; xi++) {
-        var gx = mL + (xi / 2) * pW;
-        var isCenterX = (xi === 1);
-        xGridLines += line(gx, mT, gx, mT + pH,
-          isCenterX ? '#c9a84c' : '#0f3460',
-          isCenterX ? 1.5 : 1,
-          isCenterX ? '7,4' : '4,4',
-          isCenterX ? 0.55 : 1);
-      }
-
-      // Y axis tick labels
-      var yLabels = '';
-      [0, 2, 4, 6, 8].forEach(function (v) {
-        var ly = mT + (1 - v / 8) * pH;
-        yLabels += '<text x="' + (mL - 9) + '" y="' + (ly + 4) + '"' +
-          ' text-anchor="end" fill="#888" font-size="11" font-family="Georgia,serif">' + v + '</text>';
-      });
-
-      // X axis tick labels
-      var xLabels = '';
-      [0, 1, 2].forEach(function (v) {
-        var lx = mL + (v / 2) * pW;
-        xLabels += '<text x="' + lx + '" y="' + (mT + pH + 18) + '"' +
-          ' text-anchor="middle" fill="#888" font-size="11" font-family="Georgia,serif">' + v + '</text>';
-      });
-
-      // Quadrant label helper
-      function qLabel(x, y, color, line1, line2) {
-        return '<text x="' + x + '" y="' + y + '" text-anchor="middle" fill="' + color + '"' +
-          ' font-size="10" font-family="Georgia,serif" opacity="0.75">' + line1 + '</text>' +
-          (line2 ? '<text x="' + x + '" y="' + (y + 14) + '" text-anchor="middle" fill="' + color + '"' +
-          ' font-size="10" font-family="Georgia,serif" opacity="0.75">' + line2 + '</text>' : '');
-      }
-
-      var qx1 = mL + pW * 0.25, qx2 = mL + pW * 0.75;
-      var qyTop = mT + pH * 0.1, qyBot = mT + pH * 0.88;
+      // Map scores to SVG % coordinates
+      // xScore 0–2: 0 = left (pro-change), 2 = right (resistance to change)
+      // yScore 0–8: 0 = bottom (low freedom), 8 = top (high freedom)
+      var dotX = plotLeft + (xScore / 2)  * (plotRight  - plotLeft);
+      var dotY = plotBottom - (yScore / 8) * (plotBottom - plotTop);
 
       svg.innerHTML =
-        // Defs
         '<defs>' +
           '<radialGradient id="dotGrad" cx="50%" cy="50%" r="50%">' +
             '<stop offset="0%" stop-color="#ff6b6b"/>' +
@@ -466,53 +429,14 @@
           '</radialGradient>' +
         '</defs>' +
 
-        // Background
-        '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#1a1a2e" rx="10"/>' +
-
-        // Quadrant fills
-        '<rect x="' + mL + '" y="' + mT + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#162444" opacity="0.55"/>' +
-        '<rect x="' + (mL + pW / 2) + '" y="' + mT + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#16301e" opacity="0.55"/>' +
-        '<rect x="' + mL + '" y="' + (mT + pH / 2) + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#2a1a40" opacity="0.55"/>' +
-        '<rect x="' + (mL + pW / 2) + '" y="' + (mT + pH / 2) + '" width="' + (pW / 2) + '" height="' + (pH / 2) + '" fill="#2e1a1a" opacity="0.55"/>' +
-
-        // Grid
-        yGridLines + xGridLines +
-
-        // Plot border
-        '<rect x="' + mL + '" y="' + mT + '" width="' + pW + '" height="' + pH +
-          '" fill="none" stroke="#0f3460" stroke-width="2"/>' +
-
-        // Tick labels
-        yLabels + xLabels +
-
-        // Quadrant labels
-        qLabel(qx1, qyTop, '#4a90d9', 'High Freedom', 'Pro-Change') +
-        qLabel(qx2, qyTop, '#2ecc71', 'High Freedom', 'Status Quo') +
-        qLabel(qx1, qyBot, '#9b59b6', 'Low Freedom', 'Pro-Change') +
-        qLabel(qx2, qyBot, '#e74c3c', 'Low Freedom', 'Status Quo') +
-
-        // Axis titles
-        '<text x="' + (mL + pW / 2) + '" y="' + (H - 16) + '"' +
-          ' text-anchor="middle" fill="#c9a84c" font-size="12.5" font-family="Georgia,serif">' +
-          '&#8592; Pro-Change &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Status Quo &#8594;</text>' +
-
-        '<text x="16" y="' + (H / 2) + '"' +
-          ' text-anchor="middle" fill="#c9a84c" font-size="12.5" font-family="Georgia,serif"' +
-          ' transform="rotate(-90,16,' + (H / 2) + ')">' +
-          '&#8595; Low Freedom &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; High Freedom &#8593;</text>' +
-
-        // Crosshair lines to dot
-        line(mL, dotY, dotX, dotY, '#ff6b6b', 0.9, '3,4', 0.5) +
-        line(dotX, mT + pH, dotX, dotY, '#ff6b6b', 0.9, '3,4', 0.5) +
-
-        // Outer glow
-        '<circle cx="' + dotX + '" cy="' + dotY + '" r="15" fill="#c0392b" opacity="0.18"/>' +
-        '<circle cx="' + dotX + '" cy="' + dotY + '" r="11" fill="#c0392b" opacity="0.12"/>' +
+        // Outer glow rings
+        '<circle cx="' + dotX + '" cy="' + dotY + '" r="3"   fill="#c0392b" opacity="0.18"/>' +
+        '<circle cx="' + dotX + '" cy="' + dotY + '" r="2.2" fill="#c0392b" opacity="0.12"/>' +
 
         // Dot with pulse animation
-        '<circle cx="' + dotX + '" cy="' + dotY + '" r="8" fill="url(#dotGrad)" stroke="#fff" stroke-width="1.5">' +
-          '<animate attributeName="r" values="8;11;8" dur="2.2s" repeatCount="indefinite"/>' +
-          '<animate attributeName="opacity" values="1;0.85;1" dur="2.2s" repeatCount="indefinite"/>' +
+        '<circle cx="' + dotX + '" cy="' + dotY + '" r="1.6" fill="url(#dotGrad)" stroke="#fff" stroke-width="0.35">' +
+          '<animate attributeName="r"       values="1.6;2.2;1.6" dur="2.2s" repeatCount="indefinite"/>' +
+          '<animate attributeName="opacity" values="1;0.85;1"    dur="2.2s" repeatCount="indefinite"/>' +
         '</circle>';
     }
 
