@@ -228,7 +228,7 @@
   <div id="chart-section">
     <div class="chart-title">Your Political Position</div>
     <div class="chart-wrapper">
-      <img id="chart-bg" src="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001" alt="Political Diamond Chart">
+      <img id="chart-bg" src="https://github.com/user-attachments/assets/8eb2211e-b6ba-47c3-b20f-5d1e9ec3e001" alt="">
       <svg id="chart-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Political position chart"></svg>
     </div>
     <div class="scores-display" id="scores-display"></div>
@@ -418,7 +418,7 @@
       // Map scores to SVG % coordinates
       // xScore 0–2: 0 = left (pro-change), 2 = right (resistance to change)
       // yScore 0–8: 0 = bottom (low freedom), 8 = top (high freedom)
-      var dotX = plotLeft + (xScore / 2)  * (plotRight  - plotLeft);
+      var dotX = plotLeft + (xScore / 2) * (plotRight - plotLeft);
       var dotY = plotBottom - (yScore / 8) * (plotBottom - plotTop);
 
       svg.innerHTML =
